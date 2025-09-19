@@ -19,15 +19,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const corsOption = {
-  origin: 'http://localhost:5173',
+  origin: 'https://job-portal-frontend-six-lake.vercel.app/',
   credentials: true 
 };
 
 app.use(cors(corsOption));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 
 // API routes
+app.get("/", (req,res)=>res.send("Backend is running ✅"));
+
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/company", companyRoutes);  
 app.use("/api/v1/job",jobRoute);  
