@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const corsOption = {
-  origin: 'https://job-portal-frontend-d38l.vercel.app/',
+  origin: 'https://job-portal-frontend-six-lake.vercel.app/',
   credentials: true 
 };
 
