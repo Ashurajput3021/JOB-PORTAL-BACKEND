@@ -13,7 +13,7 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "All fields required", success: false });
     }
 
-    // Check duplicate email or fullname
+    // check duplicate email or fullname
     const userExists = await User.findOne({ $or: [{ email }, { fullname }] });
     if (userExists) {
       return res.status(400).json({
@@ -22,15 +22,14 @@ export const register = async (req, res) => {
       });
     }
 
-    // ✅ Default profile photo (if user doesn't upload)
-    let profilePhotoUrl = "https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456/default-avatar.png";
-
-    // ✅ Upload profile photo if provided
-    if (req.file) {
-      const fileUri = getDataUri(req.file);
-      const uploaded = await uploadOnCloudinary(fileUri, "avatars");
-      profilePhotoUrl = uploaded?.secure_url || profilePhotoUrl;
+    if (!req.file) {
+      return res.status(400).json({ message: "Profile photo is required", success: false });
     }
+
+    // Upload profile photo
+    const fileUri = getDataUri(req.file);
+    const uploaded = await uploadOnCloudinary(fileUri, "avatars");
+    const profilePhotoUrl = uploaded?.secure_url;
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -46,7 +45,6 @@ export const register = async (req, res) => {
     return res
       .status(201)
       .json({ message: "Account created", success: true, user: newUser });
-
   } catch (error) {
     console.error("Register error:", error);
     return res.status(500).json({ message: "Server error", success: false });
@@ -75,19 +73,20 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Role mismatch", success: false });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, { expiresIn: "1d" });
+    const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, {
+      expiresIn: "1d",
+    });
 
     // ✅ Set cookie for cross-site (Vercel → Render)
     return res
       .status(200)
       .cookie("token", token, {
-        maxAge: 86400000,
+        maxAge: 86400000, // 1 day
         httpOnly: true,
-        sameSite: "none",
-        secure: true
+        sameSite: "none", // ✅ allow cross-site
+        secure: true      // ✅ required for HTTPS
       })
       .json({ message: `Welcome back ${user.fullname}`, success: true, user });
-
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Server error", success: false });
@@ -109,7 +108,9 @@ export const updateProfile = async (req, res) => {
     const { fullname, email, phoneNumber, bio, skills } = req.body;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(400).json({ message: "User not found", success: false });
+    if (!user) {
+      return res.status(400).json({ message: "User not found", success: false });
+    }
 
     if (fullname) user.fullname = fullname;
     if (email) user.email = email;
@@ -132,14 +133,12 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // ✅ Update profile photo if uploaded
     if (req.files?.profilePhoto?.[0]) {
       const fileUri = getDataUri(req.files.profilePhoto[0]);
       const uploaded = await uploadOnCloudinary(fileUri, "avatars");
       user.profile.profilePhoto = uploaded?.secure_url || user.profile.profilePhoto;
     }
 
-    // ✅ Update resume if uploaded
     if (req.files?.resume?.[0]) {
       const fileUri = getDataUri(req.files.resume[0]);
       const uploaded = await uploadOnCloudinary(fileUri, "resumes", "raw");
@@ -149,8 +148,9 @@ export const updateProfile = async (req, res) => {
     }
 
     await user.save();
-    return res.status(200).json({ success: true, message: "Profile updated", user });
-
+    return res
+      .status(200)
+      .json({ success: true, message: "Profile updated", user });
   } catch (error) {
     console.error("Update profile error:", error);
     return res.status(500).json({ message: "Server error", success: false });
