@@ -12,6 +12,8 @@ import applicationRoute from "./routes/application.route.js";
 dotenv.config(); 
 
 const app = express();
+app.set("trust proxy", 1); // keep this at the top
+
 
 // Middleware
 app.use(express.json());
