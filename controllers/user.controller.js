@@ -22,14 +22,15 @@ export const register = async (req, res) => {
       });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ message: "Profile photo is required", success: false });
-    }
+    // ✅ Default profile photo
+    let profilePhotoUrl = "https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456/default-avatar.png";
 
-    // Upload profile photo
-    const fileUri = getDataUri(req.file);
-    const uploaded = await uploadOnCloudinary(fileUri, "avatars");
-    const profilePhotoUrl = uploaded?.secure_url;
+    // ✅ Upload profile photo if provided
+    if (req.file) {
+      const fileUri = getDataUri(req.file);
+      const uploaded = await uploadOnCloudinary(fileUri, "avatars");
+      profilePhotoUrl = uploaded?.secure_url || profilePhotoUrl;
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -77,14 +78,13 @@ export const login = async (req, res) => {
       expiresIn: "1d",
     });
 
-    // ✅ Set cookie for cross-site (Vercel → Render)
     return res
       .status(200)
       .cookie("token", token, {
-        maxAge: 86400000, // 1 day
+        maxAge: 86400000,
         httpOnly: true,
-        sameSite: "none", // ✅ allow cross-site
-        secure: true      // ✅ required for HTTPS
+        sameSite: "none",
+        secure: true
       })
       .json({ message: `Welcome back ${user.fullname}`, success: true, user });
   } catch (error) {
@@ -104,7 +104,7 @@ export const logout = async (_req, res) => {
 // -------- UPDATE PROFILE --------
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.id; // from auth middleware
+    const userId = req.id;
     const { fullname, email, phoneNumber, bio, skills } = req.body;
 
     const user = await User.findById(userId);
@@ -144,7 +144,6 @@ export const updateProfile = async (req, res) => {
       const uploaded = await uploadOnCloudinary(fileUri, "resumes", "raw");
       user.profile.resume = uploaded?.secure_url;
       user.profile.resumeOriginalName = req.files.resume[0].originalname;
-      console.log("Resume uploaded to Cloudinary:", uploaded?.secure_url);
     }
 
     await user.save();
